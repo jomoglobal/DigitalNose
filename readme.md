@@ -33,7 +33,14 @@ This repository contains a self-contained sample implementation of the **Digital
    digital-nose-gui
    ```
 
-   Use the "Capture Sample" button to simulate captures for different scent families and view the resulting predictions, sensor fingerprints, and environment readings.
+   The GUI requires access to a display server. When running in a headless
+   environment (such as a remote terminal or container without X forwarding),
+   the command exits with a helpful message instead of crashing. Set up X11
+   forwarding or use the console workflow if you cannot provide a display.
+
+   Use the "Capture Sample" button to simulate captures for different scent
+   families and view the resulting predictions, sensor fingerprints, and
+   environment readings.
 
 4. **Run tests**
 

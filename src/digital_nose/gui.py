@@ -316,7 +316,15 @@ class DigitalNoseApp(tk.Tk):
             self.probability_tree.insert("", tk.END, values=(label, display))
 
 def main() -> None:
-    app = DigitalNoseApp()
+    try:
+        app = DigitalNoseApp()
+    except tk.TclError as exc:  # pragma: no cover - environment dependent
+        raise SystemExit(
+            "Could not open the Digital Nose GUI. "
+            "A graphical display is required (missing $DISPLAY).\n"
+            "If you are running in a headless environment, consider using "
+            "an X11 forwarding solution or the console workflow described in the README."
+        ) from exc
     app.mainloop()
 
 
