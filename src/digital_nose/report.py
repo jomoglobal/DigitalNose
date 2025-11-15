@@ -6,8 +6,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Iterable
 
-import numpy as np
-
 
 @dataclass
 class ScentReport:
@@ -63,4 +61,5 @@ def intensity_from_reading(total_voc: float) -> float:
 
     # Normalize by an arbitrary reference range to produce a 0-100 index.
     reference_max = 600.0
-    return float(np.clip(total_voc / reference_max * 100, 0, 100))
+    scaled = total_voc / reference_max * 100
+    return float(max(0.0, min(100.0, scaled)))

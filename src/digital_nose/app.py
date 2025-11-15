@@ -22,23 +22,33 @@ def _print_header(title: str) -> None:
     console.rule(f"[bold green]{title}")
 
 
-def train_and_evaluate(dataset_path: Path) -> tuple[ModelArtifacts, dict[str, str]]:
+def train_and_evaluate(dataset_path: Path) -> tuple[ModelArtifacts, dict[str, object]]:
     df = load_dataset(dataset_path)
     artifacts, metrics = train_model(df)
     console.print("[bold cyan]Model trained.[/]")
-    console.print(metrics["classification_report"])
+    accuracy = metrics.get("overall_accuracy", 0.0)
+    console.print(f"Overall accuracy: {accuracy:.2%}")
+    per_class = metrics.get("per_class_accuracy", {})
+    if per_class:
+        table = Table(title="Per-class accuracy")
+        table.add_column("Scent family")
+        table.add_column("Accuracy")
+        for label, score in per_class.items():
+            display = "n/a" if score is None else f"{score:.2%}"
+            table.add_row(label, display)
+        console.print(table)
     return artifacts, metrics
 
 
 def simulate_live_reading(artifacts: ModelArtifacts, profile: ScentProfile) -> ScentReport:
     simulator = SensorSimulator()
-    reading = simulator.capture(profile, n_samples=1).iloc[0].to_dict()
+    reading = simulator.capture(profile, n_samples=1)[0]
     total_voc = sum(reading[feature] for feature in VOC_FEATURES)
     env = {feature: reading[feature] for feature in ENVIRONMENT_FEATURES}
     predicted_family, probabilities = predict(artifacts, reading)
     report = ScentReport.from_prediction(
         predicted_family=predicted_family,
-        probabilities=zip(artifacts.classes_, probabilities),
+        probabilities=probabilities.items(),
         intensity_index=intensity_from_reading(total_voc),
         environment=env,
     )

@@ -7,8 +7,6 @@ import random
 from dataclasses import dataclass
 from typing import Dict, Iterable, List
 
-import pandas as pd
-
 VOC_FEATURES = [
     "acetone_ppb",
     "ethanol_ppb",
@@ -107,14 +105,14 @@ class SensorSimulator:
         self._rng = random.Random()
         self._tick = 0
 
-    def capture(self, profile: ScentProfile, *, n_samples: int = 1) -> pd.DataFrame:
+    def capture(self, profile: ScentProfile, *, n_samples: int = 1) -> List[Dict[str, float]]:
         """Simulate `n_samples` sensor captures for the provided profile."""
 
-        rows = []
+        rows: List[Dict[str, float]] = []
         for _ in range(n_samples):
             rows.append(self._simulate_single(profile))
             self._tick += 1
-        return pd.DataFrame(rows)
+        return rows
 
     def _simulate_single(self, profile: ScentProfile) -> Dict[str, float]:
         reading: Dict[str, float] = {}
@@ -132,10 +130,12 @@ def sample_dataset(
     *, profiles: Iterable[ScentProfile] | None = None,
     samples_per_profile: int = 120,
     simulator: SensorSimulator | None = None,
-) -> pd.DataFrame:
+) -> List[Dict[str, float]]:
     """Generate a labeled dataset of simulated sensor readings."""
 
     profiles = list(profiles or DEFAULT_PROFILES)
     simulator = simulator or SensorSimulator()
-    frames = [simulator.capture(profile, n_samples=samples_per_profile) for profile in profiles]
-    return pd.concat(frames, ignore_index=True)
+    samples: List[Dict[str, float]] = []
+    for profile in profiles:
+        samples.extend(simulator.capture(profile, n_samples=samples_per_profile))
+    return samples
