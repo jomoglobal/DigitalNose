@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "digital-nose"
+version = "0.1.0"
+description = "Sample Digital Nose simulation and analysis app"
+authors = [{name = "Sample Developer"}]
+readme = "readme.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "rich>=13.0"
+]
+
+[project.scripts]
+digital-nose-app = "digital_nose.app:main"
