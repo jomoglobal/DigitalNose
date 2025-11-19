@@ -10,9 +10,11 @@ authors = [{name = "Sample Developer"}]
 readme = "readme.md"
 requires-python = ">=3.10"
 dependencies = [
-    "rich>=13.0"
+    "rich>=13.0",
+    "flask>=3.0"
 ]
 
 [project.scripts]
 digital-nose-app = "digital_nose.app:main"
 digital-nose-gui = "digital_nose.gui:main"
+digital-nose-web = "digital_nose.webapp:main"
