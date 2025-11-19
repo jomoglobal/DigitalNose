@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Nose Visual Simulator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid #e9ecef;
+            font-weight: 600;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            background-color: #e7f1ff;
+            color: #004085;
+            font-size: 0.9rem;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0066cc;
+        }
+        .table-sm td, .table-sm th {
+            padding: 0.5rem;
+        }
+        .progress {
+            height: 1.5rem;
+        }
+        .btn-capture {
+            background-color: #0066cc;
+            color: white;
+            font-weight: 500;
+        }
+        .btn-capture:hover {
+            background-color: #0052a3;
+            color: white;
+        }
+        .result-section {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="mb-4">
+            <h1 class="display-4 fw-bold">Digital Nose Simulator</h1>
+            <p class="lead text-muted">
+                Generate virtual scent captures, classify them, and explore sensor responses visually.
+            </p>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <label for="profileSelect" class="form-label fw-semibold">Choose scent family:</label>
+                        <select class="form-select" id="profileSelect">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label d-block">&nbsp;</label>
+                        <button class="btn btn-capture w-100" id="captureBtn">Capture Sample</button>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label d-block">&nbsp;</label>
+                        <div class="status-badge" id="statusMessage">Ready.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Panel: VOC Chart -->
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">VOC Fingerprint</div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="vocChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Metrics and Results -->
+            <div class="col-md-5">
+                <!-- Model Performance -->
+                <div class="card">
+                    <div class="card-header">Model Performance</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="metric-value" id="overallAccuracy">-</div>
+                            <small class="text-muted">Overall Accuracy</small>
+                        </div>
+                        <table class="table table-sm" id="perClassTable">
+                            <thead>
+                                <tr>
+                                    <th>Scent Family</th>
+                                    <th class="text-center">Accuracy</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Latest Classification -->
+                <div class="card">
+                    <div class="card-header">Latest Classification</div>
+                    <div class="card-body" id="resultsPanel">
+                        <div class="text-center text-muted py-4">
+                            <p>No sample captured yet. Click "Capture Sample" to begin.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let vocChart = null;
+        let appConfig = null;
+
+        // Initialize the application
+        async function initApp() {
+            try {
+                const response = await fetch('/api/init');
+                appConfig = await response.json();
+
+                // Populate profile selector
+                const select = document.getElementById('profileSelect');
+                select.innerHTML = appConfig.profiles.map(p =>
+                    `<option value="${p}">${p}</option>`
+                ).join('');
+
+                // Display metrics
+                const accuracy = appConfig.metrics.overall_accuracy;
+                document.getElementById('overallAccuracy').textContent =
+                    `${(accuracy * 100).toFixed(2)}%`;
+
+                // Populate per-class accuracy table
+                const tbody = document.querySelector('#perClassTable tbody');
+                tbody.innerHTML = Object.entries(appConfig.metrics.per_class_accuracy)
+                    .map(([family, acc]) => `
+                        <tr>
+                            <td>${family}</td>
+                            <td class="text-center">${acc !== null ? (acc * 100).toFixed(2) + '%' : 'n/a'}</td>
+                        </tr>
+                    `).join('');
+
+                // Initialize empty chart
+                initChart();
+            } catch (error) {
+                console.error('Failed to initialize app:', error);
+                document.getElementById('statusMessage').textContent = 'Error loading application.';
+            }
+        }
+
+        // Initialize the VOC chart
+        function initChart() {
+            const ctx = document.getElementById('vocChart').getContext('2d');
+            vocChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'VOC Concentration (ppb)',
+                        data: [],
+                        backgroundColor: [
+                            '#5b8ff9', '#61d9a1', '#65789b',
+                            '#f6bd16', '#7262fd', '#78d3f8'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Concentration (ppb)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update the VOC chart with new data
+        function updateChart(reading) {
+            const labels = Object.keys(reading).map(k =>
+                k.replace('_ppb', '').replace(/_/g, ' ')
+            );
+            const values = Object.values(reading);
+
+            vocChart.data.labels = labels;
+            vocChart.data.datasets[0].data = values;
+            vocChart.update();
+        }
+
+        // Update the results panel
+        function updateResults(report) {
+            const resultsPanel = document.getElementById('resultsPanel');
+
+            const probRows = Object.entries(report.raw_probabilities)
+                .map(([family, prob]) => `
+                    <tr>
+                        <td>${family}</td>
+                        <td class="text-center">${(prob * 100).toFixed(1)}%</td>
+                    </tr>
+                `).join('');
+
+            resultsPanel.innerHTML = `
+                <div class="result-section">
+                    <h5 class="mb-3">
+                        Predicted scent: <strong>${report.predicted_family}</strong>
+                    </h5>
+                    <p class="mb-2">
+                        <strong>Confidence:</strong> ${(report.confidence * 100).toFixed(1)}%
+                    </p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Intensity Index:</label>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" role="progressbar"
+                             style="width: ${report.intensity_index}%"
+                             aria-valuenow="${report.intensity_index}"
+                             aria-valuemin="0" aria-valuemax="100">
+                            ${report.intensity_index.toFixed(1)}
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <h6 class="fw-semibold">Environment:</h6>
+                    <small class="text-muted">Temperature:</small> ${report.environment.temperature_c.toFixed(1)}°C<br>
+                    <small class="text-muted">Humidity:</small> ${report.environment.humidity_pct.toFixed(1)}%
+                </div>
+
+                <hr>
+
+                <div>
+                    <h6 class="fw-semibold mb-2">Class Probabilities:</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Scent Family</th>
+                                <th class="text-center">Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${probRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Capture a sample
+        async function captureSample() {
+            const profile = document.getElementById('profileSelect').value;
+            const btn = document.getElementById('captureBtn');
+            const status = document.getElementById('statusMessage');
+
+            btn.disabled = true;
+            status.textContent = 'Capturing sample...';
+
+            try {
+                const response = await fetch('/api/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profile })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateChart(data.reading);
+                    updateResults(data.report);
+                    status.textContent = `Captured sample from '${profile}' → predicted as ${data.report.predicted_family}.`;
+                } else {
+                    status.textContent = 'Error: ' + (data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Capture failed:', error);
+                status.textContent = 'Error capturing sample.';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('captureBtn').addEventListener('click', captureSample);
+
+        // Initialize on load
+        window.addEventListener('load', initApp);
+    </script>
+</body>
+</html>

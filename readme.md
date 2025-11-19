@@ -8,7 +8,8 @@ This repository contains a self-contained sample implementation of the **Digital
 - Dataset utilities that build and persist a CSV dataset of simulated readings.
 - Lightweight centroid classifier that provides confidence scores without heavy dependencies.
 - Command-line app that trains the model, simulates a new capture, and prints a standardized scent report.
-- Tkinter dashboard with interactive controls, probability breakdowns, and live VOC fingerprint visualization.
+- Web-based dashboard with interactive controls, Chart.js visualizations, and real-time classification.
+- Tkinter dashboard with interactive controls, probability breakdowns, and live VOC fingerprint visualization (legacy).
 - Unit test to validate that the training pipeline runs end-to-end.
 
 ## Getting Started
@@ -27,7 +28,22 @@ This repository contains a self-contained sample implementation of the **Digital
 
    The first run generates a dataset at `data/sample_scent_readings.csv`, trains the classifier, and prints a scent report for a simulated capture.
 
-3. **Launch the graphical dashboard**
+3. **Launch the web-based dashboard**
+
+   ```bash
+   digital-nose-web
+   ```
+
+   This starts a Flask development server at `http://127.0.0.1:5000`. Open this
+   URL in your browser to access the interactive dashboard. The web UI features:
+   - Real-time scent capture simulation
+   - Interactive Chart.js visualizations of VOC fingerprints
+   - Model performance metrics
+   - Classification results with confidence scores and probabilities
+
+   The web UI works in any environment, including headless servers.
+
+4. **Launch the Tkinter dashboard (legacy)**
 
    ```bash
    digital-nose-gui
@@ -42,7 +58,7 @@ This repository contains a self-contained sample implementation of the **Digital
    families and view the resulting predictions, sensor fingerprints, and
    environment readings.
 
-4. **Run tests**
+5. **Run tests**
 
    ```bash
    pytest
@@ -54,10 +70,13 @@ This repository contains a self-contained sample implementation of the **Digital
 src/digital_nose/
 ├── app.py           # CLI entry point
 ├── dataset.py       # Dataset generation and loading helpers
-├── gui.py           # Tkinter dashboard for interactive exploration
+├── gui.py           # Tkinter dashboard for interactive exploration (legacy)
 ├── model.py         # Lightweight centroid classifier helpers
 ├── report.py        # Scent report dataclass and utilities
-└── sensors.py       # Sensor simulator and scent profiles
+├── sensors.py       # Sensor simulator and scent profiles
+├── webapp.py        # Flask web UI with REST API
+└── templates/
+    └── index.html   # Web dashboard interface
 ```
 
 `tests/` contains unit tests, and `data/` stores generated datasets.
